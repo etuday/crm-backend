@@ -1,3 +1,32 @@
+// const express = require("express");
+// const router = express.Router();
+
+// const {
+//   createTicket,
+//   getTickets,
+//   updateTicketStatus,
+//   assignTicket,
+// } = require("../controllers/ticketController");
+
+// const { protect, authorize } = require("../middleware/authMiddleware");
+
+// // Create ticket (User)
+// router.post("/", protect, createTicket);
+
+// // Get tickets
+// router.get("/", protect, getTickets);
+
+// // Update status
+// router.put("/:id/status", protect, updateTicketStatus);
+
+// // Assign ticket (Admin only)
+// router.put("/:id/assign", protect, authorize("Admin"), assignTicket);
+
+// module.exports = router;
+
+
+
+
 const express = require("express");
 const router = express.Router();
 
@@ -6,20 +35,25 @@ const {
   getTickets,
   updateTicketStatus,
   assignTicket,
+  deleteTicket
 } = require("../controllers/ticketController");
 
 const { protect, authorize } = require("../middleware/authMiddleware");
 
-// Create ticket (User)
+// Create ticket
 router.post("/", protect, createTicket);
 
-// Get tickets
+// Get all tickets
 router.get("/", protect, getTickets);
 
 // Update status
-router.put("/:id/status", protect, updateTicketStatus);
+router.put("/:id", protect, updateTicketStatus);
 
 // Assign ticket (Admin only)
-router.put("/:id/assign", protect, authorize("Admin"), assignTicket);
+router.put("/assign/:id", protect, authorize("Admin"), assignTicket);
+
+//delete ticket
+router.delete("/:id", protect, authorize("Admin"), deleteTicket);
 
 module.exports = router;
+

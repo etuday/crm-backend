@@ -91,3 +91,15 @@ exports.assignTicket = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+
+
+// DELETE TICKET (Admin only)
+exports.deleteTicket = async (req, res) => {
+  try {
+    await Ticket.findByIdAndDelete(req.params.id);
+    res.json({ message: "Ticket deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
