@@ -1,9 +1,12 @@
 const Ticket = require("../models/Ticket");
 
-// CREATE TICKET (User)
+
+// ============================
+// CREATE TICKET (User Only)
+// ============================
 exports.createTicket = async (req, res) => {
   try {
-    const { title, description, priority } = req.body;
+    const { title, description } = req.body;
 
     if (!title) {
       return res.status(400).json({ message: "Title is required" });
@@ -12,37 +15,57 @@ exports.createTicket = async (req, res) => {
     const ticket = await Ticket.create({
       title,
       description,
-      priority,
       createdBy: req.user.id,
+      status: "Open",
     });
 
     res.status(201).json(ticket);
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// GET ALL TICKETS (With Simple Status Filter)
+
+
+// ============================
+// GET TICKETS (Role Based)
+// ============================
 exports.getTickets = async (req, res) => {
   try {
-    const filter = {};
+    let filter = {};
 
-    // Beginner-friendly filter
+    // 🔥 Role-based filtering
+    if (req.user.role === "User") {
+      filter.createdBy = req.user.id;
+    }
+
+    if (req.user.role === "Agent") {
+      filter.assignedTo = req.user.id;
+    }
+
+    // Optional status filter
     if (req.query.status) {
       filter.status = req.query.status;
     }
 
     const tickets = await Ticket.find(filter)
       .populate("createdBy", "name email")
-      .populate("assignedTo", "name email");
+      .populate("assignedTo", "name email")
+      .sort({ createdAt: -1 });
 
     res.json(tickets);
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// UPDATE TICKET STATUS
+
+
+// ============================
+// UPDATE TICKET STATUS (Agent)
+// ============================
 exports.updateTicketStatus = async (req, res) => {
   try {
     const { status } = req.body;
@@ -51,23 +74,41 @@ exports.updateTicketStatus = async (req, res) => {
       return res.status(400).json({ message: "Status is required" });
     }
 
-    const ticket = await Ticket.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    );
+    const ticket = await Ticket.findById(req.params.id);
 
     if (!ticket) {
       return res.status(404).json({ message: "Ticket not found" });
     }
 
+    // Only assigned agent can update
+    if (
+      req.user.role === "Agent" &&
+      ticket.assignedTo?.toString() !== req.user.id
+    ) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    ticket.status = status;
+
+    // If closing ticket → store resolved time
+    if (status === "Closed") {
+      ticket.resolvedAt = new Date();
+    }
+
+    await ticket.save();
+
     res.json(ticket);
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// ASSIGN TICKET (Admin only)
+
+
+// ============================
+// ASSIGN TICKET (Admin Only)
+// ============================
 exports.assignTicket = async (req, res) => {
   try {
     const { assignedTo } = req.body;
@@ -76,17 +117,20 @@ exports.assignTicket = async (req, res) => {
       return res.status(400).json({ message: "Agent ID is required" });
     }
 
-    const ticket = await Ticket.findByIdAndUpdate(
-      req.params.id,
-      { assignedTo },
-      { new: true }
-    );
+    const ticket = await Ticket.findById(req.params.id);
 
     if (!ticket) {
       return res.status(404).json({ message: "Ticket not found" });
     }
 
+    ticket.assignedTo = assignedTo;
+    ticket.assignedAt = new Date();
+    ticket.status = "In Progress";
+
+    await ticket.save();
+
     res.json(ticket);
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -94,11 +138,21 @@ exports.assignTicket = async (req, res) => {
 
 
 
-// DELETE TICKET (Admin only)
+// ============================
+// DELETE TICKET (Admin Only)
+// ============================
 exports.deleteTicket = async (req, res) => {
   try {
-    await Ticket.findByIdAndDelete(req.params.id);
+    const ticket = await Ticket.findById(req.params.id);
+
+    if (!ticket) {
+      return res.status(404).json({ message: "Ticket not found" });
+    }
+
+    await ticket.deleteOne();
+
     res.json({ message: "Ticket deleted successfully" });
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
