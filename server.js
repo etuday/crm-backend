@@ -21,6 +21,10 @@ const ticketRoutes = require("./routes/ticketRoutes");
 app.use("/api/auth", authRoutes);
 app.use("/api/tickets", ticketRoutes);
 
+
+const userRoutes = require("./routes/userRoutes");
+app.use("/api/users", userRoutes);
+
 // ========================
 // Import Auth Middleware
 // ========================
